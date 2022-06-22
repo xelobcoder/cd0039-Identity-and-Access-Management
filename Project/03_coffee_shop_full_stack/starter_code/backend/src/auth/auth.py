@@ -31,7 +31,36 @@ class AuthError(Exception):
     return the token part of the header
 '''
 def get_token_auth_header():
-   raise Exception('Not Implemented')
+
+    #get headers from the request
+    auth_header = request.headers.get('Authorization', None)
+    #check if header is none
+    if auth_header is None:
+        raise Exception('not implemented')
+    #split the header
+    parts = auth_header.split()
+    #check if header is malformed
+    if parts[0].lower() != 'bearer':
+        raise AuthError({
+            'code': 'invalid_header',
+            'description': 'Authorization header must start with "Bearer".'
+        }, 401)
+    #check if there is no token
+    elif len(parts) == 1:
+        raise AuthError({
+            'code': 'invalid_header',
+            'description': 'Token not found.'
+        }, 401)
+    #check if there is more than one token
+    elif len(parts) > 2:
+        raise AuthError({
+            'code': 'invalid_header',
+            'description': 'Authorization header must be bearer token.'
+        }, 401)
+    else: 
+        return parts[1]
+    
+
 
 '''
 @TODO implement check_permissions(permission, payload) method
@@ -43,10 +72,16 @@ def get_token_auth_header():
         !!NOTE check your RBAC settings in Auth0
     it should raise an AuthError if the requested permission string is not in the payload permissions array
     return true otherwise
-'''
-def check_permissions(permission, payload):
-    raise Exception('Not Implemented')
 
+'''
+def check_permissions(permission,payload): 
+    # check if permission is in payload
+    if permission not in payload['permissions']:
+        raise AuthError({
+            'code': 'unauthorized',
+            'description': 'Permission not found.'
+        }, 401)
+    return True
 '''
 @TODO implement verify_decode_jwt(token) method
     @INPUTS
@@ -61,6 +96,33 @@ def check_permissions(permission, payload):
     !!NOTE urlopen has a common certificate error described here: https://stackoverflow.com/questions/50236117/scraping-ssl-certificate-verify-failed-error-for-http-en-wikipedia-org
 '''
 def verify_decode_jwt(token):
+    # get your public key from Auth0, that is very important here
+    jsonurl = urlopen(f'https://{AUTH0_DOMAIN}/.well-known/jwks.json')
+    # read the json file
+    jwks = json.loads(jsonurl.read())
+    # get the public key
+    header_unverified = jwt.get_unverified_header(token)
+
+    # raising an error if kid is not in the header
+    if 'kid' not in header_unverified:
+        raise AuthError({
+            'code': 'invalid_header',
+            'description': 'Authorization malformed.'
+        }, 401)
+    
+    # creating a key dictionary
+    rsa_key = {}
+    for key in jwks['keys']:
+        if key['kid'] == header_unverified['kid']:
+            rsa_key = {
+                'kty': key['kty'],
+                'kid': key['kid'],
+                'use': key['use'],
+                'n': key['n'],
+                'e': key['e']
+            }
+    
+
     raise Exception('Not Implemented')
 
 '''
