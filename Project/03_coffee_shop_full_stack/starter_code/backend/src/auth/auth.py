@@ -75,6 +75,13 @@ def get_token_auth_header():
 
 '''
 def check_permissions(permission,payload): 
+    # checking for permissions in payload
+    if 'permissions' not in payload:
+        raise AuthError({
+            'code': 'invalid_claims',
+            'description': 'Permissions not included in JWT.'
+        }, 400)
+
     # check if permission is in payload
     if permission not in payload['permissions']:
         raise AuthError({
@@ -121,10 +128,35 @@ def verify_decode_jwt(token):
                 'n': key['n'],
                 'e': key['e']
             }
-    
-
+    # time to verify the key through token
+    if rsa_key:
+        try:
+            # verify the token
+            payload = jwt.decode(
+                token,
+                rsa_key,
+                algorithms=ALGORITHMS,
+                audience=API_AUDIENCE,
+                issuer='https://' + AUTH0_DOMAIN + '/'
+            )
+            return payload
+        except jwt.ExpiredSignatureError:
+            raise AuthError({
+                'code': 'token_expired',
+                'description': 'Token expired.'
+            }, 401)
+        except jwt.JWTClaimsError:
+            raise AuthError({
+                'code': 'invalid_claims',
+                'description': 'Incorrect claims. Please, check the audience and issuer.'
+            }, 401)
+        except Exception:
+            raise AuthError({
+                'code': 'invalid_header',
+                'description': 'Unable to parse authentication token.'
+            }, 400)
     raise Exception('Not Implemented')
-
+    
 '''
 @TODO implement @requires_auth(permission) decorator method
     @INPUTS
