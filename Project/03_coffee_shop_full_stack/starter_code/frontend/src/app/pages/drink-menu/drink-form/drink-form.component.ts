@@ -43,7 +43,7 @@ export class DrinkFormComponent implements OnInit {
 
   closeModal() {
     this.modalCtrl.dismiss();
-  }
+  } 
 
   saveClicked() {
     this.drinkService.saveDrink(this.drink);

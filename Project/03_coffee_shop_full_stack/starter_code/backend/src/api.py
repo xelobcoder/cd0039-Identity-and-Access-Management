@@ -1,11 +1,12 @@
 import os
+import dotenv
 from flask import Flask, request, jsonify, abort
 from sqlalchemy import exc
 import json
 from flask_cors import CORS
-
 from .database.models import db_drop_and_create_all, setup_db, Drink
 from .auth.auth import AuthError, requires_auth
+
 
 app = Flask(__name__)
 setup_db(app)
@@ -18,6 +19,8 @@ CORS(app)
 !! Running this funciton will add one
 '''
 db_drop_and_create_all()
+
+
 
 # ROUTES
 '''
@@ -55,16 +58,19 @@ def get_drinks():
 '''
 @app.route('/drinks-detail')
 @requires_auth('get:drinks-detail')
-def get_drinks_detail(token):
-    # get all drinks from db
-    drinks = Drink.query.all()
-    # convert to list of dicts
-    drinks_long = [drink.long() for drink in drinks]
-    # return json
-    return jsonify({
-        'success': True,
-        'drinks': drinks_long
-    })
+def get_drinks_detail(payload):
+    try:
+        # get all drinks from db
+        drinks = Drink.query.order_by(Drink.id).all()
+        # convert to list of dicts
+        drinks_long = [drink.long() for drink in drinks]
+        # return json
+        return jsonify({
+            'success': True,
+            'drinks': drinks_long
+        })
+    except:
+        abort(422)
 
 
 
@@ -79,14 +85,14 @@ def get_drinks_detail(token):
 '''
 @app.route('/drinks', methods=['POST'])
 @requires_auth('post:drinks')
-def post_drinks(token):
+def post_drinks(pay_load):
     # get data from request
     data = request.get_json()
     # check if data is valid
     if 'title' not in data or 'recipe' not in data:
         abort(422)
     # create new drink
-    new_drink = Drink(title=data['title'], recipe=data['recipe'])
+    new_drink = Drink(title=data['title'], recipe=json.dumps(data['recipe']))
     # add to db
     new_drink.insert()
     # get new drink from db
@@ -211,6 +217,16 @@ def not_found(error):
     error handler should conform to general task above
 '''
 
+# implementing error for internal server error
+@app.errorhandler(500)
+def error_handler(error):
+    return jsonify({
+        "success": False,
+        "error": 500,
+        "message": "internal server error"
+    }), 500
+
+
 @app.errorhandler(AuthError)
 def auth_error(error):
     return jsonify({
@@ -218,4 +234,5 @@ def auth_error(error):
         "error": error.status_code,
         "message": error.error['description']
     }), error.status_code
+
 

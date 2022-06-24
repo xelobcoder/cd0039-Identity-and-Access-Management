@@ -3,11 +3,16 @@ from flask import request, _request_ctx_stack
 from functools import wraps
 from jose import jwt
 from urllib.request import urlopen
+import os
+from dotenv import find_dotenv, load_dotenv
 
 
-AUTH0_DOMAIN = 'udacity-fsnd.auth0.com'
-ALGORITHMS = ['RS256']
-API_AUDIENCE = 'dev'
+
+
+
+AUTH0_DOMAIN = os.environ.get('AUTH0_DOMAIN')
+ALGORITHMS = os.environ.get('ALGORITHMS')
+API_AUDIENCE = os.environ.get('API_AUDIENCE')
 
 ## AuthError Exception
 '''
@@ -174,7 +179,6 @@ def requires_auth(permission=''):
             token = get_token_auth_header()
             payload = verify_decode_jwt(token)
             check_permissions(permission, payload)
-            return f(payload, *args, **kwargs)
-
+            return f(payload, **args, **kwargs)
         return wrapper
     return requires_auth_decorator
