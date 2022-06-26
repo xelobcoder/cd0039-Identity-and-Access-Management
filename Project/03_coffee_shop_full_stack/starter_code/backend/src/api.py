@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify, abort
 from sqlalchemy import exc
 import json
 from flask_cors import CORS
-from .database.models import db_drop_and_create_all, setup_db, Drink
+from .database.models import db_drop_and_create_all, setup_db,db, Drink
 from .auth.auth import AuthError, requires_auth
 
 
@@ -86,24 +86,39 @@ def get_drinks_detail(payload):
 @app.route('/drinks', methods=['POST'])
 @requires_auth('post:drinks')
 def post_drinks(pay_load):
-    # get data from request
+#    get data from request
     data = request.get_json()
-    # check if data is valid
+
     if 'title' not in data or 'recipe' not in data:
         abort(422)
-    # create new drink
-    new_drink = Drink(title=data['title'], recipe=json.dumps(data['recipe']))
-    # add to db
-    new_drink.insert()
-    # get new drink from db
-    new_drink = Drink.query.filter(Drink.id == new_drink.id).one_or_none()
-    # convert to dict
-    new_drink = new_drink.long()
-    # return json
-    return jsonify({
-        'success': True,
-        'drinks': [new_drink]
-    })
+    #destructure data
+    title,recipe = data['title'],data['recipe']
+    
+    try:
+        if isinstance(recipe, dict):
+            new_drink = Drink(title=title, recipe=json.dumps([recipe]))
+        else:
+            new_drink = Drink(title=title, recipe=json.dumps(recipe))
+        # insert new drink into db
+        new_drink.insert()
+        # get new drink 
+        drinks_long= [new_drink.long()]
+        # return json
+        return jsonify({
+            'success': True,
+            'drinks': drinks_long
+        })
+    except:
+        db.session.rollback()
+        raise AuthError({
+            'code': 'duplicates drink title',
+            'description': 'Drink title already exists.'
+        },422)
+    finally:
+        db.session.close()
+        
+
+        
 
 
 
@@ -131,9 +146,14 @@ def patch_drinks(token, id):
     # check if drink exists
     if not drink:
         abort(404)
-    # update drink
-    drink.title = data['title']
-    drink.recipe = data['recipe']
+    # destructure title and recipe
+    title, recipe = data['title'], data['recipe']
+    
+    if title:
+        drink.title = title
+    
+    if recipe:
+        drink.recipe = json.dumps(recipe)
     # add to db
     drink.update()
     # get new drink from db
@@ -236,3 +256,11 @@ def auth_error(error):
     }), error.status_code
 
 
+
+def getll():
+    drinks = Drink.query.all()
+    # convert to list of dicts
+    drinks_short = [drink.short() for drink in drinks]
+    return drinks_short
+
+print(getll())

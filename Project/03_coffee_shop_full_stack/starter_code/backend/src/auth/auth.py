@@ -145,22 +145,28 @@ def verify_decode_jwt(token):
                 issuer='https://' + AUTH0_DOMAIN + '/'
             )
             return payload
+        # raise an exception if the token is expired
         except jwt.ExpiredSignatureError:
             raise AuthError({
                 'code': 'token_expired',
                 'description': 'Token expired.'
             }, 401)
+        # raise an error if The claims are invalid.
         except jwt.JWTClaimsError:
             raise AuthError({
                 'code': 'invalid_claims',
-                'description': 'Incorrect claims. Please, check the audience and issuer.'
+                'description': 'Incorrect claims.'
             }, 401)
-        except Exception:
+        # raise an error if the signature is invalid.
+        except jwt.JWTError:
             raise AuthError({
                 'code': 'invalid_header',
                 'description': 'Unable to parse authentication token.'
             }, 400)
-    raise Exception('Not Implemented')
+    raise 
+      
+
+
     
 '''
 @TODO implement @requires_auth(permission) decorator method
@@ -179,6 +185,6 @@ def requires_auth(permission=''):
             token = get_token_auth_header()
             payload = verify_decode_jwt(token)
             check_permissions(permission, payload)
-            return f(payload, **args, **kwargs)
+            return f(payload, *args, **kwargs)
         return wrapper
     return requires_auth_decorator
